@@ -1,0 +1,2 @@
+bio_path:static\resources\uploads\BIOMETRIC_DATA\jan_2025_biometric.csv
+hrone_path:static\resources\uploads\HRONE_DATA\Attendance_Register_Jan.xlsx
