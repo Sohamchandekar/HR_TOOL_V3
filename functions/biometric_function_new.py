@@ -662,7 +662,7 @@ def half_day(employee_dict):
                 hours, minutes = map(int, daily_hours.split(':'))
                 total_minutes = hours * 60 + minutes
 
-                if total_minutes < 360:  # less than 6 hours
+                if total_minutes < 420:  # less than 6 hours
                     half_day_map[i] = 1
                     if status == 'P':
                         details['Status'][i] = 'P1/2'
