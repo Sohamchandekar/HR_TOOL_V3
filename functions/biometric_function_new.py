@@ -1294,3 +1294,23 @@ def process_missing_data(insights_dict):
     df = df.reset_index(drop=True)
 
     return df
+
+
+
+
+def absentee_map(employee_dict):
+    # Define statuses that are considered as absentee
+    absentee_statuses = ['A']
+
+    # Loop through each employee's data
+    for employee, data in employee_dict.items():
+        # Extract the status list from the employee's data
+        status_list = data['Status']
+
+        # Create the absentee map by checking if each status is in the absentee_statuses list
+        absentee_map = [1 if status in absentee_statuses else 0 for status in status_list]
+
+        # Add the absentee map to the employee's data
+        data['absenteeMap'] = absentee_map
+
+    return employee_dict
