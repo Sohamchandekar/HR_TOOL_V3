@@ -115,6 +115,7 @@ def home():
     employee_dict = sunday_wop_adjustment(employee_dict)
     employee_dict = calculate_metric(employee_dict)
     employee_dict = finalAdjustment(employee_dict)
+    employee_dict = absentee_map(employee_dict)
     #########################################################
 
 
