@@ -236,19 +236,22 @@ def create_donut_chart(employee_dict_dashboard):
     return fig
 
 def create_combined_barchart(employee_dict_dashboard):
+
+
     employee_data = employee_dict_dashboard
 
     days = employee_data['Days']
     Half_Day_Mapping = employee_data['halfDayMap']
     earlyLeaveMap = employee_data['earlyLeaveMap']
     lateMark = employee_data['lateMark']
+    absenteeMap = employee_data['absenteeMap']
 
     # Format the days to show only the day of the month
     formatted_days = [day.split()[0].zfill(2) for day in days]
 
     # Create subplots with no vertical spacing
     fig = make_subplots(
-        rows=3, cols=1,
+        rows=4, cols=1,
         shared_xaxes=True,
         vertical_spacing=0.05,
     )
@@ -261,7 +264,7 @@ def create_combined_barchart(employee_dict_dashboard):
         colorscale=[[0, '#D0DDD0'], [1, '#2E5077']],  # Light grey for 0 and blue for 1
         showscale=False,
         xgap=1.5,  # Gap between boxes along x-axis
-        ygap=0.5,  # No gap between boxes along y-axis
+        ygap=0,  # No gap between boxes along y-axis
         text=[f"Day: {day}, Half Day Mapping: {mark}" for day, mark in zip(formatted_days, Half_Day_Mapping)],
         hoverinfo="text",
         zmin=0, zmax=1  # Ensure the colorscale does not interpolate
@@ -272,7 +275,7 @@ def create_combined_barchart(employee_dict_dashboard):
         z=[lateMark],
         x=formatted_days,
         y=['Late Mark'],
-        colorscale=[[0, '#D0DDD0'], [1, '#1B262C']],
+        colorscale=[[0, '#D0DDD0'], [1, '#1B262C']],  # Light grey for 0 and blue for 1
         showscale=False,
         xgap=1.5,  # Gap between boxes along x-axis
         ygap=0.5,  # No gap between boxes along y-axis
@@ -294,6 +297,20 @@ def create_combined_barchart(employee_dict_dashboard):
         hoverinfo="text",
         zmin=0, zmax=1  # Ensure the colorscale does not interpolate
     ), row=3, col=1)
+
+    # Add Absentee Map heatmap
+    fig.add_trace(go.Heatmap(
+        z=[absenteeMap],
+        x=formatted_days,
+        y=['Absentee Map'],
+        colorscale=[[0, '#D0DDD0'], [1, '#2E5077']],  # Light grey for 0 and tomato red for 1
+        showscale=False,
+        xgap=1.5,  # Gap between boxes along x-axis
+        ygap=0.5,  # No gap between boxes along y-axis
+        text=[f"Day: {day}, Absentee: {mark}" for day, mark in zip(formatted_days, absenteeMap)],
+        hoverinfo="text",
+        zmin=0, zmax=1  # Ensure the colorscale does not interpolate
+    ), row=4, col=1)
 
     # Update layout for the combined chart
     fig.update_layout(
@@ -324,6 +341,15 @@ def create_combined_barchart(employee_dict_dashboard):
             showgrid=False,
             fixedrange=True  # Make x-axis static
         ),
+        xaxis4=dict(
+            tickmode='array',
+            tickvals=formatted_days,
+            ticktext=formatted_days,
+            gridcolor='black',  # Dark black coloured grids
+            zeroline=False,  # Hide x-axis line
+            showgrid=False,
+            fixedrange=True  # Make x-axis static
+        ),
         yaxis=dict(
             gridcolor='black',  # Dark black coloured grids
             zeroline=False,  # Hide y-axis line
@@ -345,15 +371,22 @@ def create_combined_barchart(employee_dict_dashboard):
             fixedrange=True,  # Make y-axis static
             tickvals=[]  # Hide y-axis labels
         ),
+        yaxis4=dict(
+            gridcolor='black',  # Dark black coloured grids
+            zeroline=False,  # Hide y-axis line
+            showgrid=False,
+            fixedrange=True,  # Make y-axis static
+            tickvals=[]  # Hide y-axis labels
+        ),
         font={'color': "black", 'family': "Arial"},
         paper_bgcolor="rgba(225, 225, 225, 0)",  # Transparent background
         plot_bgcolor="rgba(225, 225, 225, 0)",  # Transparent plot background
-        height=180,  # Set the height of the plot
-        width=1780,  # Set a width for the plot to maintain aspect ratio
-        margin=dict(l=150, r=90, b=10, t=10),  # Set margins (left, right, bottom, top)
+        height=230,  # Set the height of the plot to accommodate the fourth heatmap
+        width=1750,  # Set a width for the plot to maintain aspect ratio
+        margin=dict(l=180, r=90, b=10, t=10),  # Set margins (left, right, bottom, top)
         annotations=[
             dict(
-                x=-0.045,
+                x= -0.045,
                 y=0.95,
                 xref='paper',
                 yref='paper',
@@ -364,7 +397,7 @@ def create_combined_barchart(employee_dict_dashboard):
             ),
             dict(
                 x=-0.052,
-                y=0.5,
+                y=0.68,
                 xref='paper',
                 yref='paper',
                 text='Late Marks',
@@ -374,10 +407,20 @@ def create_combined_barchart(employee_dict_dashboard):
             ),
             dict(
                 x=-0.060,
-                y=0.09,
+                y=0.39,
                 xref='paper',
                 yref='paper',
                 text='Early Leaves',
+                showarrow=False,
+                font=dict(size=13),
+                textangle=0
+            ),
+            dict(
+                x=-0.055,
+                y=0.08,
+                xref='paper',
+                yref='paper',
+                text='Absentees',
                 showarrow=False,
                 font=dict(size=13),
                 textangle=0
