@@ -443,6 +443,7 @@ def create_overtime_barchart(employee_dict_dashboard):
         minutes = int((hours_decimal - hours) * 60)
         return f"{hours:02d}hr:{minutes:02d}mins"
 
+
     employee_data = employee_dict_dashboard
     days = employee_data['Days']
     overtimes = employee_data['overTime']
@@ -450,6 +451,7 @@ def create_overtime_barchart(employee_dict_dashboard):
     # Initialize lists for all dates and corresponding overtimes
     all_days = []
     all_overtimes = []
+    bar_colors = []
 
     # Populate all_days with formatted day numbers and all_overtimes with corresponding overtime values
     for day, overtime in zip(days, overtimes):
@@ -458,10 +460,14 @@ def create_overtime_barchart(employee_dict_dashboard):
 
         hours, minutes = map(int, overtime.split(':'))
         total_minutes = hours * 60 + minutes
-        if total_minutes >= 60:  # Change this condition to 60 minutes (1 hour)
-            all_overtimes.append(total_minutes / 60)  # Convert to hours
+        overtime_hours = total_minutes / 60  # Convert to hours
+        all_overtimes.append(overtime_hours)
+
+        # Determine bar color based on overtime
+        if overtime_hours >= 1:
+            bar_colors.append("#143D60")  # Green color for more than 1 hour
         else:
-            all_overtimes.append(0)  # No bar for overtime less than 60 minutes
+            bar_colors.append("#8E1616")  # Dark grey color for less than 1 hour
 
     text_outside_bars = [format_time_in_hours_and_minutes(ot) if ot > 0 else "" for ot in all_overtimes]
     hover_texts = [format_time_in_hours_and_minutes_text(ot) if ot > 0 else "" for ot in all_overtimes]
@@ -471,7 +477,7 @@ def create_overtime_barchart(employee_dict_dashboard):
         go.Bar(
             x=all_days,
             y=all_overtimes,
-            marker_color="#1B262C",
+            marker_color=bar_colors,
             text=text_outside_bars,
             hovertext=hover_texts,
             hoverinfo='text',
@@ -522,12 +528,14 @@ def create_overtime_barchart(employee_dict_dashboard):
         height=450,
     )
 
-    # Disable pan, zoom, lasso select, and box select
+    # Disable default plotly interactions
     fig.update_layout(
-        xaxis=dict(fixedrange=True),
-        yaxis=dict(fixedrange=True),
         dragmode=False,
-        selectdirection='h'
+        newshape=dict(line_color='cyan'),
+        modebar=dict(
+            remove=['zoom', 'pan', 'select', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d',
+                    'hoverClosestCartesian', 'hoverCompareCartesian']
+        )
     )
 
     return fig
