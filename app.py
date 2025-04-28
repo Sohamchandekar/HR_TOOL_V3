@@ -92,11 +92,6 @@ def home():
 
 
     employee_dict = process_attendance_file(BIOMETRICPATH)
-    employee_dict_hrone = process_employee_hroneData(HRONEPATH)
-    employee_dict_hrone = dict_cleaning_hrone(employee_dict_hrone)
-    employee_dict_hrone = update_weekdays_hrone(employee_dict_hrone)
-    employee_dict = matching_mechanism(employee_dict, employee_dict_hrone)
-
     employee_dict = date_cleaning(employee_dict)
     employee_dict = status_reset(employee_dict)
     employee_dict = sunday_finder(employee_dict)
@@ -116,11 +111,6 @@ def home():
     employee_dict = calculate_metric(employee_dict)
     employee_dict = finalAdjustment(employee_dict)
     employee_dict = absentee_map(employee_dict)
-    #########################################################
-
-
-
-
 
     ################### Ratios Calculation ##################
 
@@ -264,11 +254,6 @@ def user_report():
     missing_data = process_missing_data(insights)
     missing_data_html = missing_data.to_html(index=False)
 
-
-
-
-
-
     return render_template('user_report.html',
                            report_html=report_html,
                            missing_data_html = missing_data_html)
@@ -289,7 +274,6 @@ def upload():
 
     if request.method == 'POST':
         biometric_file = request.files.get('biometric_file')
-        hrone_file = request.files.get('hrone_file')
         uploaded_files = []
 
         # Create a dictionary to store paths
@@ -304,14 +288,6 @@ def upload():
             uploaded_files.append(biometric_filename)
             BIOMETRICPATH = biometric_file_path
             file_paths['bio_path'] = BIOMETRICPATH
-
-        # Save the HRONE file
-        if hrone_file and allowed_file(hrone_file.filename):
-            hrone_filename = secure_filename(hrone_file.filename)
-            hrone_file_path = os.path.join(app.config['UPLOAD_FOLDER_HRONE'], hrone_filename)
-            hrone_file.save(hrone_file_path)
-            HRONEPATH = hrone_file_path
-            file_paths['hrone_path'] = HRONEPATH
 
         # Save the paths to a file
         if file_paths:
