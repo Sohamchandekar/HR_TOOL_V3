@@ -261,7 +261,100 @@ def user_report():
 ############################# ADMIN ################################
 @app.route('/admin')
 def admin():
-    return render_template('admin.html')
+    load_saved_paths()
+    global report_html
+    global employee_dict
+    global insights
+  
+    employee_dict = process_attendance_file(BIOMETRICPATH)
+    employee_dict = date_cleaning(employee_dict)
+    employee_dict = status_reset(employee_dict)
+    employee_dict = sunday_finder(employee_dict)
+    employee_dict = daily_working_hours_calculation_bulk(employee_dict)
+    employee_dict = fixed_holidays(employee_dict, holiday_dictionary)
+    employee_dict = absent_days(employee_dict)
+    employee_dict = calculate_daily_working_hours(employee_dict)
+    employee_dict, insights = missing_punch(employee_dict)
+    employee_dict = recalibrator(employee_dict)
+    employee_dict = half_day(employee_dict)
+    employee_dict = calculate_latemark(employee_dict)
+    employee_dict = early_leave(employee_dict)
+    employee_dict = nonworking_days_compoff(employee_dict)
+    employee_dict = overtime(employee_dict)
+    employee_dict = saturday_compoff(employee_dict)
+    employee_dict = sunday_wop_adjustment(employee_dict)
+    employee_dict = calculate_metric(employee_dict)
+    employee_dict = finalAdjustment(employee_dict)
+    employee_dict = absentee_map(employee_dict)
+    ################### Ratios Calculation ##################
+
+    employee_dict = calculate_adherence_ratio(employee_dict)
+    employee_dict = calculate_work_deficit_ratio(employee_dict)
+    employee_dict = calculate_adjusted_absentee_rate(employee_dict)
+
+
+    # First, extract the data you need from each employee record
+    report_data = {}
+    for employee, data in employee_dict.items():
+        employee_data = {
+            'OfficeWorkingDays': data['reportMetric']['OfficeWorkingDays'],
+            'PublicHolidays': data['reportMetric']['PublicHolidays'],
+            'EmployeeTotalWorkingDay': data['reportMetric']['EmployeeTotalWorkingDay'],
+            'EmployeeTotalWorkingHours': data['reportMetric']['EmployeeTotalWorkingHours'],
+            'averageWorkingHour': data['averageWorkingHour'],
+            'incompleteHours': data['incompleteHours'],
+            'actualOverTime': data['actualOverTime'],
+            'payableOverTime': data['payableOverTime'],
+            'halfDayTotal': data['halfDayTotal'],
+            'lateMarkCount': data['lateMarkCount'],
+            'totalEarlyLeave': data['totalEarlyLeave'],
+
+            'compOff': data['compOff'],
+            'EmployeeActualAbsentee': data['reportMetric']['EmployeeActualAbsentee'],
+            'EmployeeAbsenteeWithLateMark': data['reportMetric']['EmployeeAbsenteeWithLateMark'],
+
+            # Main level fields
+
+            'averageInTime': data['averageInTime'],
+            'averageOutTime': data['averageOutTime'],
+
+        }
+        report_data[employee] = employee_data
+
+    # Create DataFrame from the flattened dictionary
+    reportDataframe = pd.DataFrame.from_dict(report_data, orient='index')
+    reportDataframe.reset_index(inplace=True)
+    reportDataframe.rename(columns={'index': 'Employee'}, inplace=True)
+
+    # Rename columns as per your requirements
+    reportDataframe.rename(columns={
+        'OfficeWorkingDays': 'Office Working',
+        'EmployeeTotalWorkingDay': 'Employee Total Present',
+        'PublicHolidays': 'Public Holiday',
+        'EmployeeTotalWorkingHours': 'Employee Total Working Hours',
+        'EmployeeActualAbsentee': 'Physical Absentee',
+        'lateMarkAbsentee': 'Late Mark Absentee',
+        'lateMarkCount': 'Total Late Mark',
+        'EmployeeAbsenteeWithLateMark': 'Employee Total Absentee',
+        'compOff': 'Compensatory Off',
+        'actualOverTime': 'Over Time',
+        'payableOverTime': 'Payable Over Time',
+        'incompleteHours': 'Incomplete Hours',
+        'halfDayTotal': 'Total Half Days',
+        'totalEarlyLeave': 'Total Early Leaves',
+        'averageWorkingHour': 'Average Working Hours',
+        'averageInTime': 'Average In Time',
+        'averageOutTime': 'Average Out Time',
+
+
+    }, inplace=True)
+
+    # Convert DataFrame to HTML
+    report_html = reportDataframe.to_html(index=False)
+
+    # Retrieve the user's name from the session
+    user_name = session.get('name', 'User ')  # Default to 'User ' if not found
+    return render_template('admin.html', user_name=user_name)
 
 
 @app.route('/upload', methods=['GET', 'POST'])
