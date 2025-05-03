@@ -881,7 +881,7 @@ def overtime(employee_dict, expected_work_hours=9):
                     overtime_td = timedelta(minutes=overtime_minutes)
                     over_time.append(format_timedelta(overtime_td))
                     total_actual_overtime_minutes += overtime_minutes
-                    if overtime_minutes > 50:
+                    if overtime_minutes > 60:
                         total_payable_overtime_minutes += overtime_minutes
                 else:
                     over_time.append("00:00")
