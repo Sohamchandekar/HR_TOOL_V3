@@ -87,14 +87,21 @@ def process_attendance_data(input_csv):
     # Locate where employee data starts
     emp_rows = df[df.iloc[:, 0] == "Employee:"].index.tolist()
 
-    cleaned_data = [["Employee", "Days"] + dates]  # Initialize with header containing dates
+    cleaned_data = [["Employee ID", "Employee Name", "Type"] + dates]  # Update header
 
     for i in range(len(emp_rows)):
         start_idx = emp_rows[i]
         end_idx = emp_rows[i + 1] if i + 1 < len(emp_rows) else len(df)
 
-        # Extract Employee Name
-        employee_name = str(df.iloc[start_idx, 3]).split(":")[-1].strip()
+        # Extract Employee Name and ID
+        emp_info = str(df.iloc[start_idx, 3])
+        if ":" in emp_info:
+            parts = emp_info.split(":")
+            employee_id = parts[0].strip()
+            employee_name = parts[-1].strip()
+        else:
+            employee_id = ""
+            employee_name = emp_info.strip()
 
         # Extract the subset of data belonging to this employee
         emp_data = df.iloc[start_idx:end_idx]
@@ -104,18 +111,17 @@ def process_attendance_data(input_csv):
         intime_row = emp_data[emp_data.iloc[:, 0] == "InTime"]
         outtime_row = emp_data[emp_data.iloc[:, 0] == "OutTime"]
 
-        # Extract values while ignoring unwanted columns
         if not status_row.empty:
             status_values = status_row.iloc[:, 2:].values.flatten()
-            cleaned_data.append([employee_name, "Status"] + list(status_values))
+            cleaned_data.append([employee_id, employee_name, "Status"] + list(status_values))
 
         if not intime_row.empty:
             intime_values = intime_row.iloc[:, 2:].values.flatten()
-            cleaned_data.append([employee_name, "InTime"] + list(intime_values))
+            cleaned_data.append([employee_id, employee_name, "InTime"] + list(intime_values))
 
         if not outtime_row.empty:
             outtime_values = outtime_row.iloc[:, 2:].values.flatten()
-            cleaned_data.append([employee_name, "OutTime"] + list(outtime_values))
+            cleaned_data.append([employee_id, employee_name, "OutTime"] + list(outtime_values))
 
     # Convert cleaned data into DataFrame
     new_df = pd.DataFrame(cleaned_data)
@@ -142,37 +148,39 @@ def extract_month_year_from_filename(filename):
 
 
 def create_employee_dict(df):
-    # Extract header row (dates)
-    dates = df.iloc[0, 2:].tolist()
+    # Extract header row (dates start from column index 3 onward)
+    dates = df.iloc[0, 3:].tolist()
 
-    # Initialize the dictionary to hold the final data
+    # Initialize the dictionary
     employee_data = {}
 
-    i = 1  # Start from the first data row
+    # Start processing from row 1
+    i = 1
     while i < len(df):
-        employee_name = df.iloc[i, 0]
+        employee_id = str(df.iloc[i, 0])
+        employee_name = df.iloc[i, 1]
+        row_type = df.iloc[i, 2]
 
-        if pd.notna(employee_name):  # Check for valid employee name
-            # Extract Status, InTime, and OutTime rows
-            status_row = df.iloc[i, 2:].tolist()
-            in_time_row = df.iloc[i + 1, 2:].tolist() if i + 1 < len(df) else []
-            out_time_row = df.iloc[i + 2, 2:].tolist() if i + 2 < len(df) else []
+        if pd.notna(employee_name) and row_type == "Status":
+            # Status row
+            status = [str(x) if pd.notna(x) else "NaT" for x in df.iloc[i, 3:].tolist()]
 
-            # Build the employee dictionary with Status after Days
-            employee_dict = {
-                'Days': dates,
-                'Status': [str(x) if pd.notna(x) else 'NaT' for x in status_row],
-                'InTime': [str(x) if pd.notna(x) else 'NaT' for x in in_time_row],
-                'OutTime': [str(x) if pd.notna(x) else 'NaT' for x in out_time_row]
+            # InTime and OutTime (assume they exist next)
+            in_time = [str(x) if pd.notna(x) else "NaT" for x in df.iloc[i + 1, 3:].tolist()] if i + 1 < len(df) else []
+            out_time = [str(x) if pd.notna(x) else "NaT" for x in df.iloc[i + 2, 3:].tolist()] if i + 2 < len(df) else []
+
+            # Construct nested dictionary
+            employee_data[employee_name] = {
+                "employee_id": employee_id,
+                "Days": dates,
+                "Status": status,
+                "InTime": in_time,
+                "OutTime": out_time
             }
 
-            # Store the employee data
-            employee_data[employee_name] = employee_dict
-
-            # Move to the next employee (each has three rows: Status, InTime, and OutTime)
-            i += 3
+            i += 3  # Move to next employee's data
         else:
-            i += 1  # Skip invalid rows
+            i += 1  # Skip irrelevant rows
 
     return employee_data
 
@@ -206,7 +214,6 @@ def process_attendance_file(csv_file_path):
     # Update days based on filename
     employee_data = update_days_from_filename(employee_data, csv_file)
 
-    print(f"Processed {month_name} {year} data")
 
     return employee_data
 
@@ -231,7 +238,8 @@ def date_cleaning(employee_dictionary):
         cleaned_employee_data = {
             'Status': employee_data['Status'].copy(),
             'InTime': employee_data['InTime'].copy(),
-            'OutTime': employee_data['OutTime'].copy()
+            'OutTime': employee_data['OutTime'].copy(),
+            'EmployeeID': employee_data['employee_id']
         }
 
         # Clean the date format in the Days list
@@ -662,7 +670,7 @@ def half_day(employee_dict):
                 hours, minutes = map(int, daily_hours.split(':'))
                 total_minutes = hours * 60 + minutes
 
-                if total_minutes < 420:  # less than 6 hours
+                if total_minutes < 420:  # less than 7 hours
                     half_day_map[i] = 1
                     if status == 'P':
                         details['Status'][i] = 'P1/2'
@@ -838,11 +846,7 @@ def nonworking_days_compoff(employee_dict):
 
 def overtime(employee_dict, expected_work_hours=9):
     expected_work_minutes = expected_work_hours * 60  # Convert expected work hours to minutes
-
     from datetime import datetime, timedelta
-
-    def parse_time(time_str):
-        return datetime.strptime(time_str, "%H:%M") if time_str != 'NaT' else None
 
     def format_timedelta(td):
         total_seconds = int(td.total_seconds())
@@ -851,22 +855,32 @@ def overtime(employee_dict, expected_work_hours=9):
         return f"{hours:02}:{minutes:02}"
 
     for employee, details in employee_dict.items():
-        over_time = []  # List to store overtime for each day
-        total_actual_overtime_minutes = 0  # Total actual overtime in minutes
-        total_payable_overtime_minutes = 0  # Total payable overtime in minutes
+        over_time = []
+        total_actual_overtime_minutes = 0
+        total_payable_overtime_minutes = 0
 
-        for daily_hours in details['dailyWorkingHours']:
+        working_hours = details.get('dailyWorkingHours', [])
+        statuses = details.get('Status', [])
+
+        for i in range(len(working_hours)):
+            daily_hours = working_hours[i]
+            status = statuses[i] if i < len(statuses) else None
+
             if daily_hours != 'NaT':
                 hours, minutes = map(int, daily_hours.split(':'))
                 total_minutes = hours * 60 + minutes
 
-                if total_minutes > expected_work_minutes:
+                # Check for WOP/WOS special case
+                if status in ['WOP', 'WOS', 'WOP1/2']:
+                    overtime_td = timedelta(minutes=total_minutes)
+                    over_time.append(format_timedelta(overtime_td))
+                    total_actual_overtime_minutes += total_minutes
+                    total_payable_overtime_minutes += total_minutes
+                elif total_minutes > expected_work_minutes:
                     overtime_minutes = total_minutes - expected_work_minutes
                     overtime_td = timedelta(minutes=overtime_minutes)
                     over_time.append(format_timedelta(overtime_td))
                     total_actual_overtime_minutes += overtime_minutes
-
-                    # Check if overtime exceeds 50 minutes for payable overtime
                     if overtime_minutes > 50:
                         total_payable_overtime_minutes += overtime_minutes
                 else:
@@ -874,18 +888,9 @@ def overtime(employee_dict, expected_work_hours=9):
             else:
                 over_time.append("00:00")
 
-        # Calculate actualOverTime
-        actual_overtime_td = timedelta(minutes=total_actual_overtime_minutes)
-        actual_overtime = format_timedelta(actual_overtime_td)
-
-        # Calculate payableOverTime
-        payable_overtime_td = timedelta(minutes=total_payable_overtime_minutes)
-        payable_overtime = format_timedelta(payable_overtime_td)
-
-        # Update the employee's dictionary with the overtime data
         details['overTime'] = over_time
-        details['actualOverTime'] = actual_overtime
-        details['payableOverTime'] = payable_overtime
+        details['actualOverTime'] = format_timedelta(timedelta(minutes=total_actual_overtime_minutes))
+        details['payableOverTime'] = format_timedelta(timedelta(minutes=total_payable_overtime_minutes))
 
     return employee_dict
 
@@ -960,56 +965,6 @@ def saturday_compoff(employee_dict):
         data['Status'] = status_list
 
     return employee_dict
-
-
-def sunday_wop_adjustment(employee_data):
-    from datetime import timedelta
-
-    def convert_to_timedelta(time_str):
-        """Convert HH:MM formatted string to timedelta object."""
-        if time_str == "NaT" or time_str is None:
-            return timedelta(0)  # Treat NaT as zero
-        try:
-            h, m = map(int, time_str.split(':'))
-            return timedelta(hours=h, minutes=m)
-        except ValueError:
-            print(f"⚠ Invalid time format: {time_str}")  # Debugging log
-            return timedelta(0)  # Default to zero
-
-    """
-    Adjusts PayableOverTime for each employee by adding dailyWorkingHours for WOP (Work On Sunday) days.
-
-    Args:
-        employee_data (dict): A dictionary containing employee records.
-
-    Returns:
-        dict: The updated employee data with adjusted PayableOverTime.
-    """
-    for employee, data in employee_data.items():
-        # Extract required lists
-        status_list = data.get('Status', [])
-        working_hours_list = data.get('dailyWorkingHours', [])
-
-        # Step 1: Identify WOP days and sum their hours
-        total_wop_hours = timedelta(0)  # Initialize total WOP hours
-
-        for i in range(len(status_list)):
-            if status_list[i] == 'WOP':  # Identify WOP days
-                wop_hours = convert_to_timedelta(working_hours_list[i])
-                total_wop_hours += wop_hours  # Accumulate WOP hours
-
-        # Step 2: Convert existing PayableOverTime to timedelta
-        payable_overtime_str = data.get('payableOverTime', '00:00')
-        current_payable_overtime = convert_to_timedelta(payable_overtime_str)
-
-        # Step 3: Add WOP hours to PayableOverTime
-        updated_payable_overtime = current_payable_overtime + total_wop_hours
-
-        # Step 4: Update the dictionary in HH:MM format
-        data[
-            'payableOverTime'] = f"{updated_payable_overtime.seconds // 3600:02}:{(updated_payable_overtime.seconds % 3600) // 60:02}"
-
-    return employee_data
 
 
 def calculate_metric(employee_dict):
@@ -1294,8 +1249,6 @@ def process_missing_data(insights_dict):
     df = df.reset_index(drop=True)
 
     return df
-
-
 
 
 def absentee_map(employee_dict):
