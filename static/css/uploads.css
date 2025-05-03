@@ -90,3 +90,22 @@ body {
     border-color: transparent; /* Prevent border color changes */
     outline: none !important; /* Ensure no outline appears */
 }
+.guidelines-box {
+    background-color: #f8f9fa;
+    border-left: 4px solid #23486A;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+.guidelines-box h6 {
+    color: #23486A;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+.guidelines-box ul {
+    padding-left: 20px;
+    margin-bottom: 0;
+}
+.guidelines-box li {
+    margin-bottom: 5px;
+}
