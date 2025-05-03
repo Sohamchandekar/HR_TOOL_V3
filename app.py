@@ -19,14 +19,10 @@ from functions.biometric_function_new import *
 app = Flask(__name__)
 app.secret_key = '123'  # Set a secret key for session management
 
-
-
 # Use os.path.join consistently for all paths
 UPLOAD_FOLDER = os.path.join('static', 'resources', 'uploads')
 UPLOAD_FOLDER_BIOMETRIC = os.path.join('static', 'resources', 'uploads', 'BIOMETRIC_DATA')
 UPLOAD_FOLDER_HRONE = os.path.join('static', 'resources', 'uploads', 'HRONE_DATA')
-
-
 
 # Set Flask config values
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -88,9 +84,6 @@ def home():
     global employee_dict
     global insights
 
-
-
-
     employee_dict = process_attendance_file(BIOMETRICPATH)
     employee_dict = date_cleaning(employee_dict)
     employee_dict = status_reset(employee_dict)
@@ -107,7 +100,6 @@ def home():
     employee_dict = nonworking_days_compoff(employee_dict)
     employee_dict = overtime(employee_dict)
     employee_dict = saturday_compoff(employee_dict)
-    employee_dict = sunday_wop_adjustment(employee_dict)
     employee_dict = calculate_metric(employee_dict)
     employee_dict = finalAdjustment(employee_dict)
     employee_dict = absentee_map(employee_dict)
@@ -123,6 +115,7 @@ def home():
     report_data = {}
     for employee, data in employee_dict.items():
         employee_data = {
+            'employeeId' : data['EmployeeID'],
             'OfficeWorkingDays': data['reportMetric']['OfficeWorkingDays'],
             'PublicHolidays': data['reportMetric']['PublicHolidays'],
             'EmployeeTotalWorkingDay': data['reportMetric']['EmployeeTotalWorkingDay'],
@@ -154,6 +147,7 @@ def home():
 
     # Rename columns as per your requirements
     reportDataframe.rename(columns={
+        'employeeId' : 'Employee Id',
         'OfficeWorkingDays': 'Office Working',
         'EmployeeTotalWorkingDay': 'Employee Total Present',
         'PublicHolidays': 'Public Holiday',
@@ -171,8 +165,6 @@ def home():
         'averageWorkingHour': 'Average Working Hours',
         'averageInTime': 'Average In Time',
         'averageOutTime': 'Average Out Time',
-
-
     }, inplace=True)
 
     # Convert DataFrame to HTML
@@ -199,53 +191,59 @@ def user_dashboard():
     status_donutChart_html = ""
     heatmap_metric_html = ""
     total_deduction_card = ""
-    overtime_barchart_html= ""
+    overtime_barchart_html = ""
     star_fig = ""
 
+    # Handle POST request or default to first employee on GET request
     if request.method == 'POST':
         selected_employee = request.form.get('selected_employee')
-        if selected_employee in employee_dict:
-            employee_dict_dashboard = employee_dict[selected_employee]
-            total_work_hour_card = total_working_hours(employee_dict_dashboard)
-            average_work_hour_card = average_working_hours(employee_dict_dashboard)
-            actual_absantee_card = acutal_absantees(employee_dict_dashboard)
-            late_mark_card = late_marks_total(employee_dict_dashboard)
-            total_deduction_card = total_deduction(employee_dict_dashboard)
+    else:
+        # Default to the first employee when the page loads (GET request)
+        if employee_names:
+            selected_employee = employee_names[0]
 
+    # Process the selected employee data
+    if selected_employee in employee_dict:
+        employee_dict_dashboard = employee_dict[selected_employee]
+        total_work_hour_card = total_working_hours(employee_dict_dashboard)
+        average_work_hour_card = average_working_hours(employee_dict_dashboard)
+        actual_absantee_card = acutal_absantees(employee_dict_dashboard)
+        late_mark_card = late_marks_total(employee_dict_dashboard)
+        total_deduction_card = total_deduction(employee_dict_dashboard)
 
-            target_gauge = create_gauge_chart(employee_dict_dashboard)
-            target_gauge_html = to_html(target_gauge, full_html=False)
+        target_gauge = create_gauge_chart(employee_dict_dashboard)
+        target_gauge_html = to_html(target_gauge, full_html=False)
 
-            daily_working_trend_line= create_line_chart(employee_dict_dashboard)
-            daily_working_trend_line_html = to_html(daily_working_trend_line, full_html=False)
+        daily_working_trend_line = create_line_chart(employee_dict_dashboard)
+        daily_working_trend_line_html = to_html(daily_working_trend_line, full_html=False)
 
-            status_donutChart = create_donut_chart(employee_dict_dashboard)
-            status_donutChart_html = to_html(status_donutChart, full_html=False)
+        status_donutChart = create_donut_chart(employee_dict_dashboard)
+        status_donutChart_html = to_html(status_donutChart, full_html=False)
 
-            heatmap_metric = create_combined_barchart(employee_dict_dashboard)
-            heatmap_metric_html = to_html(heatmap_metric, full_html=False)
+        heatmap_metric = create_combined_barchart(employee_dict_dashboard)
+        heatmap_metric_html = to_html(heatmap_metric, full_html=False)
 
-            overtime_barchart = create_overtime_barchart(employee_dict_dashboard)
-            overtime_barchart_html = to_html(overtime_barchart, full_html=False)
+        overtime_barchart = create_overtime_barchart(employee_dict_dashboard)
+        overtime_barchart_html = to_html(overtime_barchart, full_html=False)
 
-            star_fig = generate_star_rating_html(employee_dict_dashboard)
+        star_fig = generate_star_rating_html(employee_dict_dashboard)
 
     return render_template('user_dashboard.html',
-                           selected_employee = selected_employee,
+                           selected_employee=selected_employee,
                            employee_names=employee_names,
                            employee_dict=employee_dict,
                            employee_dict_dashboard=employee_dict_dashboard,
-                           total_work_hour_card = total_work_hour_card,
-                           average_work_hour_card = average_work_hour_card,
-                           actual_absantee_card = actual_absantee_card,
-                           late_mark_card = late_mark_card,
-                           total_deduction_card = total_deduction_card,  # Pass the working card HTML to the template
-                           target_gauge_html = target_gauge_html,
-                           daily_working_trend_line_html = daily_working_trend_line_html,
-                           status_donutChart_html = status_donutChart_html,
-                           heatmap_metric_html = heatmap_metric_html,
-                           overtime_barchart_html = overtime_barchart_html,
-                           star_fig = star_fig)
+                           total_work_hour_card=total_work_hour_card,
+                           average_work_hour_card=average_work_hour_card,
+                           actual_absantee_card=actual_absantee_card,
+                           late_mark_card=late_mark_card,
+                           total_deduction_card=total_deduction_card,
+                           target_gauge_html=target_gauge_html,
+                           daily_working_trend_line_html=daily_working_trend_line_html,
+                           status_donutChart_html=status_donutChart_html,
+                           heatmap_metric_html=heatmap_metric_html,
+                           overtime_barchart_html=overtime_barchart_html,
+                           star_fig=star_fig)
 
 
 @app.route('/user_report')
@@ -253,6 +251,7 @@ def user_report():
 
     missing_data = process_missing_data(insights)
     missing_data_html = missing_data.to_html(index=False)
+
 
     return render_template('user_report.html',
                            report_html=report_html,
@@ -263,9 +262,10 @@ def user_report():
 def admin():
     load_saved_paths()
     global report_html
+
     global employee_dict
     global insights
-  
+
     employee_dict = process_attendance_file(BIOMETRICPATH)
     employee_dict = date_cleaning(employee_dict)
     employee_dict = status_reset(employee_dict)
@@ -282,7 +282,6 @@ def admin():
     employee_dict = nonworking_days_compoff(employee_dict)
     employee_dict = overtime(employee_dict)
     employee_dict = saturday_compoff(employee_dict)
-    employee_dict = sunday_wop_adjustment(employee_dict)
     employee_dict = calculate_metric(employee_dict)
     employee_dict = finalAdjustment(employee_dict)
     employee_dict = absentee_map(employee_dict)
@@ -297,6 +296,7 @@ def admin():
     report_data = {}
     for employee, data in employee_dict.items():
         employee_data = {
+            'employeeId': data['EmployeeID'],
             'OfficeWorkingDays': data['reportMetric']['OfficeWorkingDays'],
             'PublicHolidays': data['reportMetric']['PublicHolidays'],
             'EmployeeTotalWorkingDay': data['reportMetric']['EmployeeTotalWorkingDay'],
@@ -328,6 +328,7 @@ def admin():
 
     # Rename columns as per your requirements
     reportDataframe.rename(columns={
+        'employeeId': 'Employee Id',
         'OfficeWorkingDays': 'Office Working',
         'EmployeeTotalWorkingDay': 'Employee Total Present',
         'PublicHolidays': 'Public Holiday',
@@ -345,7 +346,6 @@ def admin():
         'averageWorkingHour': 'Average Working Hours',
         'averageInTime': 'Average In Time',
         'averageOutTime': 'Average Out Time',
-
 
     }, inplace=True)
 
